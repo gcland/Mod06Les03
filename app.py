@@ -3,9 +3,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from marshmallow import fields
 from marshmallow import ValidationError
+from password import password
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:XXXXXXXX@localhost/Fitness_Center_db'# [XXXXXX] = user password
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+mysqlconnector://root:{password}@localhost/Fitness_Center_db'
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
@@ -26,7 +27,7 @@ class WorkoutSchema(ma.Schema):
     activity = fields.String(required=True)
 
     class Meta:
-        fields = ("date", "time", "activity", "member_id", "id")
+        fields = ("session_date", "session_time", "activity", "member_id", "session_id")
 
 workout_schema = WorkoutSchema()
 workouts_schema = WorkoutSchema(many=True)
@@ -40,9 +41,9 @@ class Members(db.Model):
 
 class WorkoutSessions(db.Model):
     __tablename__ = 'WorkoutSessions'
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False)
-    time = db.Column(db.Time, nullable=False)
+    session_id = db.Column(db.Integer, primary_key=True)
+    session_date = db.Column(db.DateTime, nullable=False)
+    session_time = db.Column(db.DateTime, nullable=False)
     activity = db.Column(db.String(255), nullable=False)
     member_id = db.Column(db.Integer, db.ForeignKey('Members.id'))
 
@@ -87,7 +88,7 @@ def delete_member(id):
     member = Members.query.get_or_404(id)
     db.session.delete(member)
     db.session.commit()
-    return jsonify({'message':'Workout removed successfully'}), 200
+    return jsonify({'message':'Member removed successfully'}), 200
 
 #Workout Session functions below#
 
@@ -103,29 +104,29 @@ def add_workout():
     except ValidationError as err:
         return jsonify(err.messages), 400
 
-    new_workout = WorkoutSessions(member_id=workout_data['member_id'], date=workout_data['date'], time=workout_data['time'], activity=workout_data['activity'])
+    new_workout = WorkoutSessions(member_id=workout_data['member_id'], session_date=workout_data['session_date'], session_time=workout_data['session_time'], activity=workout_data['activity'])
     db.session.add(new_workout)
     db.session.commit()
     return jsonify({'message': 'New workout added successfully'}), 201
 
-@app.route('/workoutsessions/<int:id>', methods=['PUT'])
-def update_workout(id):
-    workout = WorkoutSessions.query.get_or_404(id)
+@app.route('/workoutsessions/<int:session_id>', methods=['PUT'])
+def update_workout(session_id):
+    workout = WorkoutSessions.query.get_or_404(session_id)
     try:
         workout_data = workout_schema.load(request.json)
     except ValidationError as err:
         return jsonify(err.messages), 400
     
     workout.member_id = workout_data['member_id']
-    workout.date = workout_data['date']
-    workout.time = workout_data['time']
+    workout.session_date = workout_data['session_date']
+    workout.session_time = workout_data['session_time']
     workout.activity = workout_data['activity']
     db.session.commit()
     return jsonify({'message':'Workout details updated successfully'}), 200
 
-@app.route('/workoutsessions/<int:id>', methods=['DELETE'])
-def delete_workout(id):
-    workout = WorkoutSessions.query.get_or_404(id)
+@app.route('/workoutsessions/<int:session_id>', methods=['DELETE'])
+def delete_workout(session_id):
+    workout = WorkoutSessions.query.get_or_404(session_id)
     db.session.delete(workout)
     db.session.commit()
     return jsonify({'message':'Workout removed successfully'}), 200
